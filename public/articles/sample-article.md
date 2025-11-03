@@ -1,6 +1,8 @@
 ---
 title: Sample Article
 summary: Demonstrates Markdown rendering capabilities within the Article Library app.
+author: Article Library Team
+created: 2025-11-03
 ---
 
 # Welcome to the Article Library

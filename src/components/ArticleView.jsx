@@ -1,14 +1,15 @@
 import { useEffect, useState } from 'react'
-import { Alert, Spinner } from 'react-bootstrap'
+import { Alert, Spinner, Button } from 'react-bootstrap'
 import ReactMarkdown from 'react-markdown'
 import remarkGfm from 'remark-gfm'
 import { Prism as SyntaxHighlighter } from 'react-syntax-highlighter'
 import { tomorrow } from 'react-syntax-highlighter/dist/esm/styles/prism'
 import './ArticleView.css'
 
-// 手动解析 frontmatter 的函数
+// Manual frontmatter parsing function
 function parseFrontmatter(content) {
-  const frontmatterRegex = /^---\s*\n([\s\S]*?)\n---\s*\n([\s\S]*)$/
+  // Handle both CRLF and LF line endings
+  const frontmatterRegex = /^---\s*[\r\n]+([\s\S]*?)[\r\n]+---\s*[\r\n]+([\s\S]*)$/
   const match = content.match(frontmatterRegex)
   
   if (!match) {
@@ -18,13 +19,13 @@ function parseFrontmatter(content) {
   const [, frontmatterString, bodyContent] = match
   const data = {}
   
-  // 简单解析 YAML frontmatter
-  frontmatterString.split('\n').forEach(line => {
+  // Simple YAML frontmatter parsing
+  frontmatterString.split(/[\r\n]+/).forEach(line => {
     const trimmed = line.trim()
     if (trimmed && trimmed.includes(':')) {
       const [key, ...valueParts] = trimmed.split(':')
       const value = valueParts.join(':').trim()
-      // 移除引号
+      // Remove quotes
       data[key.trim()] = value.replace(/^["']|["']$/g, '')
     }
   })
@@ -45,6 +46,35 @@ function resolveArticleUrl(articlePath) {
   const normalizedBase = import.meta.env.BASE_URL.replace(/\/?$/, '')
   const normalizedPath = articlePath.replace(/^\/+/, '')
   return `${normalizedBase}/${normalizedPath}`
+}
+
+function generateGitHubEditUrl(articlePath) {
+  if (!articlePath) return null
+  
+  // GitHub repository information
+  const owner = 'eliotziqi'
+  const repo = 'article-library'
+  const branch = 'main'
+  
+  // Convert article path to GitHub file path
+  // Remove leading slash and normalize path
+  const filePath = articlePath.replace(/^\/+/, '')
+  
+  return `https://github.com/${owner}/${repo}/edit/${branch}/public/${filePath}`
+}
+
+function formatDate(dateString) {
+  if (!dateString) return ''
+  
+  // Parse date as local date to avoid timezone issues
+  const dateParts = dateString.split('-')
+  const date = new Date(dateParts[0], dateParts[1] - 1, dateParts[2])
+  
+  return date.toLocaleDateString('en-US', {
+    year: 'numeric',
+    month: 'long',
+    day: 'numeric'
+  })
 }
 
 function ArticleView({ articlePath, title }) {
@@ -69,7 +99,7 @@ function ArticleView({ articlePath, title }) {
 
         const text = await response.text()
         if (!cancelled) {
-          // 使用自定义函数解析 frontmatter
+          // Parse frontmatter using custom function
           const parsed = parseFrontmatter(text)
           setContent(parsed.content)
           setFrontmatter(parsed.data)
@@ -113,17 +143,35 @@ function ArticleView({ articlePath, title }) {
 
   return (
     <article className="article-view">
-      {/* 使用 frontmatter 中的 title，如果没有则使用传入的 title */}
+      {/* Use title from frontmatter, fallback to passed title prop */}
       {(frontmatter.title || title) && (
         <h1 className="article-title">{frontmatter.title || title}</h1>
       )}
       
-      {/* 如果有 summary，显示文章摘要 */}
+      {/* Display article summary if available */}
       {frontmatter.summary && (
         <p className="article-summary">{frontmatter.summary}</p>
       )}
       
-      {/* 只渲染正文内容，不包含 frontmatter */}
+      {/* Display article metadata */}
+      {(frontmatter.author || frontmatter.created) && (
+        <div className="article-meta">
+          {frontmatter.author && (
+            <span className="article-author">
+              <i className="bi bi-person-fill me-1"></i>
+              By {frontmatter.author}
+            </span>
+          )}
+          {frontmatter.created && (
+            <span className="article-date">
+              <i className="bi bi-calendar3 me-1"></i>
+              {formatDate(frontmatter.created)}
+            </span>
+          )}
+        </div>
+      )}
+      
+      {/* Render only content body, excluding frontmatter */}
       <ReactMarkdown
         remarkPlugins={[remarkGfm]}
         components={{
@@ -148,6 +196,28 @@ function ArticleView({ articlePath, title }) {
       >
         {content}
       </ReactMarkdown>
+      
+      {/* Edit this page link */}
+      {articlePath && (
+        <div className="article-edit-section">
+          <hr className="article-divider" />
+          <Button
+            variant="outline-secondary"
+            size="sm"
+            href={generateGitHubEditUrl(articlePath)}
+            target="_blank"
+            rel="noopener noreferrer"
+            className="article-edit-button"
+            title="Edit this article on GitHub"
+          >
+            <i className="bi bi-pencil-square me-2"></i>
+            Edit this page on GitHub
+          </Button>
+          <p className="article-edit-hint">
+            Found a typo or want to improve this article? Click the button above to edit it directly on GitHub.
+          </p>
+        </div>
+      )}
     </article>
   )
 }
