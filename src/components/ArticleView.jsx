@@ -92,7 +92,13 @@ function ArticleView({ articlePath, title }) {
 
       try {
         const resolvedArticleUrl = resolveArticleUrl(articlePath)
-        const response = await fetch(resolvedArticleUrl)
+        let response = await fetch(resolvedArticleUrl)
+        
+        // If fetching .md file fails, try with query parameter to bypass cache/MIME issues
+        if (!response.ok && !resolvedArticleUrl.includes('?')) {
+          response = await fetch(`${resolvedArticleUrl}?raw=true`)
+        }
+        
         if (!response.ok) {
           throw new Error(`Failed to load article (status ${response.status})`)
         }
