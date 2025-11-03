@@ -1,6 +1,7 @@
 import { Link, Route, Routes } from 'react-router-dom'
 import { Button, Card, Container, Nav, Navbar } from 'react-bootstrap'
 import ArticleView from './components/ArticleView.jsx'
+import ArticleEditor from './components/ArticleEditor.jsx'
 import './App.css'
 
 function Home() {
@@ -27,6 +28,24 @@ function Home() {
           </div>
           <Button as={Link} to="/articles/sample" variant="primary" className="ms-md-auto">
             Read the sample article
+          </Button>
+        </Card.Body>
+      </Card>
+
+      <Card className="shadow-sm mt-4">
+        <Card.Body className="d-flex flex-column flex-md-row align-items-md-center">
+          <div>
+            <Card.Title as="h2" className="h4 fw-semibold mb-2">
+              <i className="bi bi-pencil-square me-2"></i>
+              Create New Article
+            </Card.Title>
+            <Card.Text className="text-muted mb-3 mb-md-0">
+              Use the built-in editor to create and edit articles with frontmatter metadata.
+              Generate downloadable Markdown files for your library.
+            </Card.Text>
+          </div>
+          <Button as={Link} to="/editor" variant="success" className="ms-md-auto">
+            Open Editor
           </Button>
         </Card.Body>
       </Card>
@@ -60,6 +79,10 @@ function App() {
             <Nav.Link as={Link} to="/articles/sample">
               Sample article
             </Nav.Link>
+            <Nav.Link as={Link} to="/editor">
+              <i className="bi bi-pencil-square me-1"></i>
+              Editor
+            </Nav.Link>
           </Nav>
         </Container>
       </Navbar>
@@ -72,6 +95,7 @@ function App() {
               path="/articles/sample"
               element={<ArticleView articlePath="articles/sample-article.md" title="Sample article" />}
             />
+            <Route path="/editor" element={<ArticleEditor />} />
             <Route path="*" element={<NotFound />} />
           </Routes>
         </Container>
