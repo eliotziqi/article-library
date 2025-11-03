@@ -1,7 +1,36 @@
 import { useEffect, useState } from 'react'
 import { Alert, Spinner } from 'react-bootstrap'
 import ReactMarkdown from 'react-markdown'
+import remarkGfm from 'remark-gfm'
+import { Prism as SyntaxHighlighter } from 'react-syntax-highlighter'
+import { tomorrow } from 'react-syntax-highlighter/dist/esm/styles/prism'
 import './ArticleView.css'
+
+// 手动解析 frontmatter 的函数
+function parseFrontmatter(content) {
+  const frontmatterRegex = /^---\s*\n([\s\S]*?)\n---\s*\n([\s\S]*)$/
+  const match = content.match(frontmatterRegex)
+  
+  if (!match) {
+    return { data: {}, content }
+  }
+  
+  const [, frontmatterString, bodyContent] = match
+  const data = {}
+  
+  // 简单解析 YAML frontmatter
+  frontmatterString.split('\n').forEach(line => {
+    const trimmed = line.trim()
+    if (trimmed && trimmed.includes(':')) {
+      const [key, ...valueParts] = trimmed.split(':')
+      const value = valueParts.join(':').trim()
+      // 移除引号
+      data[key.trim()] = value.replace(/^["']|["']$/g, '')
+    }
+  })
+  
+  return { data, content: bodyContent }
+}
 
 function resolveArticleUrl(articlePath) {
   if (!articlePath) {
@@ -20,6 +49,7 @@ function resolveArticleUrl(articlePath) {
 
 function ArticleView({ articlePath, title }) {
   const [content, setContent] = useState('')
+  const [frontmatter, setFrontmatter] = useState({})
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState(null)
 
@@ -39,12 +69,16 @@ function ArticleView({ articlePath, title }) {
 
         const text = await response.text()
         if (!cancelled) {
-          setContent(text)
+          // 使用自定义函数解析 frontmatter
+          const parsed = parseFrontmatter(text)
+          setContent(parsed.content)
+          setFrontmatter(parsed.data)
         }
       } catch (err) {
         if (!cancelled) {
           setError(err.message)
           setContent('')
+          setFrontmatter({})
         }
       } finally {
         if (!cancelled) {
@@ -79,8 +113,41 @@ function ArticleView({ articlePath, title }) {
 
   return (
     <article className="article-view">
-      {title ? <h1 className="article-title">{title}</h1> : null}
-      <ReactMarkdown>{content}</ReactMarkdown>
+      {/* 使用 frontmatter 中的 title，如果没有则使用传入的 title */}
+      {(frontmatter.title || title) && (
+        <h1 className="article-title">{frontmatter.title || title}</h1>
+      )}
+      
+      {/* 如果有 summary，显示文章摘要 */}
+      {frontmatter.summary && (
+        <p className="article-summary">{frontmatter.summary}</p>
+      )}
+      
+      {/* 只渲染正文内容，不包含 frontmatter */}
+      <ReactMarkdown
+        remarkPlugins={[remarkGfm]}
+        components={{
+          code({ node, inline, className, children, ...props }) {
+            const match = /language-(\w+)/.exec(className || '')
+            return !inline && match ? (
+              <SyntaxHighlighter
+                style={tomorrow}
+                language={match[1]}
+                PreTag="div"
+                {...props}
+              >
+                {String(children).replace(/\n$/, '')}
+              </SyntaxHighlighter>
+            ) : (
+              <code className={className} {...props}>
+                {children}
+              </code>
+            )
+          }
+        }}
+      >
+        {content}
+      </ReactMarkdown>
     </article>
   )
 }
